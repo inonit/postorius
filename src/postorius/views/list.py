@@ -579,14 +579,24 @@ def list_index(request, template='postorius/index.html'):
     if request.method == 'POST':
         return redirect("list_summary", list_id=request.POST["list"])
 
+    
     def _get_list_page(count, page):
+        filtering = settings.MAILMAN_LIST_INDEX_FILTERING
         client = get_mailman_client()
+
+        if filtering == 'owner-only' and not request.user.is_superuser:
+            return client.get_list_page(
+                owner=request.user.email, count=count, page=page)
+
         advertised = not request.user.is_superuser
         return client.get_list_page(
             advertised=advertised, count=count, page=page)
+        
     lists = paginate(
         _get_list_page, request.GET.get('page'), request.GET.get('count'),
         paginator_class=MailmanPaginator)
+
+    lists = paginate(_get_list_page, request.GET.get('page'), request.GET.get('count'))
     choosable_domains = _get_choosable_domains(request)
     return render(request, template,
                   {'lists': lists,
